@@ -1,15 +1,23 @@
 {
-  "name": "server",
+  "name": "cmv",
   "version": "1.0.0",
-  "description": "",
+  "description": "server app",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Pedro Campos",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.1",
     "mongodb": "^4.6.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MisterPac123/backend_ConversationalIst.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MisterPac123/backend_ConversationalIst/issues"
+  },
+  "homepage": "https://github.com/MisterPac123/backend_ConversationalIst#readme"
 }

@@ -15,8 +15,9 @@ mongoClient.connect(url, (err, db) => {
 
         const myDb = db.db('myDb')
         const usersTabble = myDb.collection('Users')
-        const chatRoomsTable = myDb.collection('ChatRooms')
+        const chatRoomsTable = myDb.collection('ChatRooms') 
 
+        
 
 
         //Signup
@@ -90,7 +91,8 @@ mongoClient.connect(url, (err, db) => {
                 type: req.body.type,
                 admin : req.body.admin,
                 users:[req.body.admin],
-
+                msgs:[]
+                
             }
 
             const query = { name: newChatRoom.name }
@@ -115,28 +117,13 @@ mongoClient.connect(url, (err, db) => {
 
         app.post('/searchChatRoom', (req, res) =>{
 
-            const query = { name: req.body.name }
+            console.log("search ChatRoom by name: " + req.body.chatName)
+            var query = { name: new RegExp(req.body.chatName, 'i'), type: "Public"};
 
-            console.log("search ChatRoom")
-
-            chatRoomsTable.findOne(query, (err, result) => {
-
-                if (result != null) {
-
-                    const objToSend = {
-                        name: result.name,
-                        description: result.description,
-                        type: result.type,
-                    }
-                    
-            console.log("Chat Found success")
-                    res.status(200).send(JSON.stringify(objToSend))
-
-                } else {
-            console.log("Chat Not Found fail")
-                    res.status(404).send()
-                }
-
+            chatRoomsTable.find(query).toArray(function(err, result) {
+                if (err) throw err;
+                console.log(result);
+                res.status(200).send(JSON.stringify(result))
             })
 
         })
@@ -150,6 +137,82 @@ mongoClient.connect(url, (err, db) => {
                 if (err) throw err;
                 console.log(result);
                 res.status(200).send(JSON.stringify(result))
+            })
+
+        })
+
+        app.post('/addUserToChatRoom', (req, res) =>{
+
+            console.log("add user to ChatRoom")
+
+            chatRoomsTable.updateOne(
+                {"name" :  req.body.chatName},
+                { $push: {"users" : req.body.username} }
+            )
+
+            var query = {name: req.body.chatName}
+
+            chatRoomsTable.findOne(query ,(err, result) => {
+
+                if(result == null){
+                    console.log("chat not found")
+                    res.status(400).send()
+                } else {
+                    console.log("user added. sending chatroom to user")
+                    console.log(result);
+
+                    res.status(200).send(JSON.stringify(result))
+                }
+            })
+        })
+
+        app.post('/sendMsgToChatRoom', (req, res) =>{
+
+            console.log("send msg to ChatRoom")
+
+            var _date = new Date();
+            _date.setHours(req.body.Hours),
+            _date.setMinutes(req.body.minutes),
+            _date.setSeconds(req.body.Secounds),
+            _date.setFullYear(req.body.year, req.body.month, req.body.date)
+
+            var msg = {
+                sender: req.body.sender,
+                msg: req.body.msg,
+                date: new Date(),
+            }
+
+
+            chatRoomsTable.updateOne(
+                {"name" :  req.body.chatName},
+                { $push: {"msgs.msg" : msg} }
+            )
+            res.status(200).send()
+
+        })
+
+        app.post('/getMsgFromChatRoom', (req, res) =>{
+
+            console.log("receive msg to ChatRoom")
+
+            if (req.body.time == '0'){
+                chatRoomsTable.find().sort({date:-1})
+            }
+
+            var query = {name: req.body.chatName}
+
+            chatRoomsTable.findOne(query ,(err, result) => {
+
+                if(result == null){
+                    console.log("chat not found")
+                    res.status(400).send()
+                } else {
+                    console.log("user added. sending chatroom to user")
+                    console.log(result);
+                    var orderedMsgs = result.msgs.find().sort({date : -1})
+                    console.log(orderedMsgs)
+                    res.status(200).send(JSON.stringify(orderedMsgs))
+                }
             })
 
         })
