@@ -170,34 +170,38 @@ mongoClient.connect(url, (err, db) => {
 
             console.log("send msg to ChatRoom")
 
-            var _date = new Date();
-            _date.setHours(req.body.Hours),
-            _date.setMinutes(req.body.minutes),
-            _date.setSeconds(req.body.Secounds),
-            _date.setFullYear(req.body.year, req.body.month, req.body.date)
-
             var msg = {
-                sender: req.body.sender,
+                sender: req.body.user,
                 msg: req.body.msg,
                 date: new Date(),
             }
 
+            chatRoomsTable.findOneAndUpdate(
+                {"name" : req.body.chatName},
+                {
+                    $push: {"msgs.$.msg": msg}
+                }
+            )
 
             chatRoomsTable.updateOne(
                 {"name" :  req.body.chatName},
                 { $push: {"msgs.msg" : msg} }
             )
+
+            var query = {name: req.body.chatName}
+
+            chatRoomsTable.findOne(query ,(err, result) => {
+                console.log(result)
+            })
+
             res.status(200).send()
+
 
         })
 
         app.post('/getMsgFromChatRoom', (req, res) =>{
 
             console.log("receive msg to ChatRoom")
-
-            if (req.body.time == '0'){
-                chatRoomsTable.find().sort({date:-1})
-            }
 
             var query = {name: req.body.chatName}
 
