@@ -17,6 +17,8 @@ mongoClient.connect(url, (err, db) => {
         const usersTabble = myDb.collection('Users')
         const chatRoomsTable = myDb.collection('ChatRooms') 
 
+        myDb.dropDatabase();
+
         
 
 
@@ -176,16 +178,11 @@ mongoClient.connect(url, (err, db) => {
                 date: new Date(),
             }
 
-            chatRoomsTable.findOneAndUpdate(
+            chatRoomsTable.updateOne(
                 {"name" : req.body.chatName},
                 {
-                    $push: {"msgs.$.msg": msg}
+                    $push: {"msgs": msg}
                 }
-            )
-
-            chatRoomsTable.updateOne(
-                {"name" :  req.body.chatName},
-                { $push: {"msgs.msg" : msg} }
             )
 
             var query = {name: req.body.chatName}
@@ -194,7 +191,7 @@ mongoClient.connect(url, (err, db) => {
                 console.log(result)
             })
 
-            res.status(200).send()
+            res.status(200).send(JSON.stringify(msg))
 
 
         })
@@ -205,6 +202,19 @@ mongoClient.connect(url, (err, db) => {
 
             var query = {name: req.body.chatName}
 
+            var orderedMsgs = chatRoomsTable.aggregate([
+                {$match: {
+                    name : req.body.chatName
+                }},
+
+                {$unwind: 'msgs'},
+
+                {$sort : {
+                     'msgs.msgs.date' : -1
+                 }}
+                ]
+            )
+
             chatRoomsTable.findOne(query ,(err, result) => {
 
                 if(result == null){
@@ -212,8 +222,7 @@ mongoClient.connect(url, (err, db) => {
                     res.status(400).send()
                 } else {
                     console.log("user added. sending chatroom to user")
-                    console.log(result);
-                    var orderedMsgs = result.msgs.find().sort({date : -1})
+                    //console.log(result);
                     console.log(orderedMsgs)
                     res.status(200).send(JSON.stringify(orderedMsgs))
                 }
