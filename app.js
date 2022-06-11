@@ -106,8 +106,6 @@ mongoClient.connect(url, (err, db) => {
 
                 if(result == null){
 		            console.log("New Room Added")
-                    console.log(newChatRoom.users)
-                    console.log(req.body.admin)
                     chatRoomsTable.insertOne(newChatRoom, (err, result) =>{
                         res.status(200).send()
                     })
@@ -127,7 +125,6 @@ mongoClient.connect(url, (err, db) => {
 
             chatRoomsTable.find(query).toArray(function(err, result) {
                 if (err) throw err;
-                console.log(result);
                 res.status(200).send(JSON.stringify(result))
             })
 
@@ -140,7 +137,6 @@ mongoClient.connect(url, (err, db) => {
 
             chatRoomsTable.find(query).toArray(function(err, result) {
                 if (err) throw err;
-                console.log(result);
                 res.status(200).send(JSON.stringify(result))
             })
 
@@ -164,8 +160,6 @@ mongoClient.connect(url, (err, db) => {
                     res.status(400).send()
                 } else {
                     console.log("user added. sending chatroom to user")
-                    //console.log(result);
-
                     res.status(200).send(JSON.stringify(result))
                 }
             })
@@ -188,12 +182,6 @@ mongoClient.connect(url, (err, db) => {
                 }
             )
 
-            var query = {name: req.body.chatName}
-
-            chatRoomsTable.findOne(query ,(err, result) => {
-                console.log(result)
-            })
-
             res.status(200).send(JSON.stringify(msg))
 
 
@@ -211,14 +199,10 @@ mongoClient.connect(url, (err, db) => {
             }
 
             chatRoomsTable.findOne(query, options, (err, result) => {
-                console.log(result)
                 res.status(200).send(JSON.stringify(result))
             })
-
         })
     }
-
-
 })
 
 app.listen(3000, () => {
