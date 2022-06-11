@@ -7,6 +7,9 @@ const url = "mongodb://localhost:27017"
 
 app.use(express.json())
 
+//const userRouter = require('./routes.users')
+//app.use('/users', userRouter)
+
 mongoClient.connect(url, (err, db) => {
 
     if (err) {
@@ -14,16 +17,16 @@ mongoClient.connect(url, (err, db) => {
     } else {
 
         const myDb = db.db('myDb')
-        const usersTabble = myDb.collection('Users')
+        const usersTable = myDb.collection('Users')
         const chatRoomsTable = myDb.collection('ChatRooms') 
 
-        myDb.dropDatabase();
+        //myDb.dropDatabase();
 
         
 
 
         //Signup
-        app.post('/signup', (req, res) =>{
+        app.post('/users/signup', (req, res) =>{
             
             const newUser = {
                 id : ObjectId(),
@@ -37,11 +40,11 @@ mongoClient.connect(url, (err, db) => {
 
             const query = { email: newUser.email }
 
-            usersTabble.findOne(query, (err, result) => {
+            usersTable.findOne(query, (err, result) => {
 
                 if(result == null){
 		    console.log("signup sucess")
-                    usersTabble.insertOne(newUser, (err, result) =>{
+                    usersTable.insertOne(newUser, (err, result) =>{
                         res.status(200).send()
                     })
                 } else {
@@ -53,14 +56,14 @@ mongoClient.connect(url, (err, db) => {
         })
         
         //Login
-        app.post('/login', (req, res) =>{
+        app.post('/users/login', (req, res) =>{
 
             const query = { username: req.body.username,
                             password: req.body.password,}
 
 	    console.log("Login")
 
-            usersTabble.findOne(query, (err, result) => {
+            usersTable.findOne(query, (err, result) => {
 
                 if (result != null) {
 
@@ -84,7 +87,7 @@ mongoClient.connect(url, (err, db) => {
 
         //new ChatRoom
 
-        app.post('/NewChatRoom', (req, res) => {
+        app.post('/chatRooms/NewChatRoom', (req, res) => {
 
             const newChatRoom = {
                 id : ObjectId(),
@@ -117,7 +120,7 @@ mongoClient.connect(url, (err, db) => {
 
             //search ChatRoom
 
-        app.post('/searchChatRoom', (req, res) =>{
+        app.post('/chatRooms/searchChatRoom', (req, res) =>{
 
             console.log("search ChatRoom by name: " + req.body.chatName)
             var query = { name: new RegExp(req.body.chatName, 'i'), type: "Public"};
@@ -130,7 +133,7 @@ mongoClient.connect(url, (err, db) => {
 
         })
 
-        app.post('/getUserChatRooms', (req, res) =>{
+        app.post('/chatRooms/getUserChatRooms', (req, res) =>{
 
             console.log("get user ChatRoom")
             var query = { users: req.body.username };
@@ -143,7 +146,7 @@ mongoClient.connect(url, (err, db) => {
 
         })
 
-        app.post('/addUserToChatRoom', (req, res) =>{
+        app.post('/chatRooms/addUserToChatRoom', (req, res) =>{
 
             console.log("add user to ChatRoom")
 
@@ -161,14 +164,14 @@ mongoClient.connect(url, (err, db) => {
                     res.status(400).send()
                 } else {
                     console.log("user added. sending chatroom to user")
-                    console.log(result);
+                    //console.log(result);
 
                     res.status(200).send(JSON.stringify(result))
                 }
             })
         })
 
-        app.post('/sendMsgToChatRoom', (req, res) =>{
+        app.post('/chatRooms/sendMsgToChatRoom', (req, res) =>{
 
             console.log("send msg to ChatRoom")
 
@@ -196,36 +199,20 @@ mongoClient.connect(url, (err, db) => {
 
         })
 
-        app.post('/getMsgFromChatRoom', (req, res) =>{
+        app.post('/chatRooms/getMsgFromChatRoom', (req, res) =>{
 
-            console.log("receive msg to ChatRoom")
+            console.log("get msg from ChatRoom")
 
-            var query = {name: req.body.chatName}
+            const query = {name: req.body.chatName}
+            const options = {
+                sort: {"msgs.date" : -1},
+                projection: {msgs : 1, _id: 0}
+                
+            }
 
-            var orderedMsgs = chatRoomsTable.aggregate([
-                {$match: {
-                    name : req.body.chatName
-                }},
-
-                {$unwind: 'msgs'},
-
-                {$sort : {
-                     'msgs.msgs.date' : -1
-                 }}
-                ]
-            )
-
-            chatRoomsTable.findOne(query ,(err, result) => {
-
-                if(result == null){
-                    console.log("chat not found")
-                    res.status(400).send()
-                } else {
-                    console.log("user added. sending chatroom to user")
-                    //console.log(result);
-                    console.log(orderedMsgs)
-                    res.status(200).send(JSON.stringify(orderedMsgs))
-                }
+            chatRoomsTable.findOne(query, options, (err, result) => {
+                console.log(result)
+                res.status(200).send(JSON.stringify(result))
             })
 
         })
