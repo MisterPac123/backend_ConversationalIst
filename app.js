@@ -7,8 +7,6 @@ const url = "mongodb://localhost:27017"
 
 app.use(express.json())
 
-//const userRouter = require('./routes.users')
-//app.use('/users', userRouter)
 
 mongoClient.connect(url, (err, db) => {
 
@@ -20,6 +18,7 @@ mongoClient.connect(url, (err, db) => {
         const usersTable = myDb.collection('Users')
         const publicChatRoomsTable = myDb.collection('PublicChatRooms') 
         const geoChatRoomTable = myDb.collection('GeoChatRooms') 
+        const privateChatRoomTable = myDb.collection('PrivateChatRooms')
 
         //myDb.dropDatabase();
 
@@ -126,7 +125,8 @@ mongoClient.connect(url, (err, db) => {
                 admin : req.body.admin,
                 users:[req.body.admin],
                 inviteLink: req.body.inviteLink,
-                msgs:[]
+                msgs:[],
+                lastMsgTime: new Date(),
                 
             }
             console.log(req.body.description)
@@ -162,7 +162,8 @@ mongoClient.connect(url, (err, db) => {
                 radius:Number(req.body.radius),
                 admin : req.body.admin,
                 users:[req.body.admin],
-                msgs:[] 
+                msgs:[],
+                lastMsgTime:new Date(),
             }
 
             const query = { name: newGeoChatRoom.name }
@@ -179,6 +180,38 @@ mongoClient.connect(url, (err, db) => {
                     })
                 } else {
 		            console.log("add geo chats failed")
+                    res.status(400).send()
+                }
+            })
+        })
+
+        app.post('/chatRooms/NewPrivateChatRoom', (req, res) => {
+
+            const newChatRoom = {
+                id : ObjectId(),
+                name: req.body.name,
+                description: req.body.description,
+                type: req.body.type,
+                admin : req.body.admin,
+                users:[req.body.admin],
+                inviteLink: req.body.inviteLink,
+                msgs:[],
+                lastMsgTime: new Date(),
+                
+            }
+            console.log(req.body.description)
+
+            const query = { name: newChatRoom.name }
+
+            privateChatRoomTable.findOne(query, (err, result) => {
+
+                if(result == null){
+		            console.log("New private Room Added")
+                    privateChatRoomTable.insertOne(newChatRoom, (err, result) =>{
+                        res.status(200).send()
+                    })
+                } else {
+		    console.log("new chat failed (name already exists")
                     res.status(400).send()
                 }
             })
@@ -205,6 +238,18 @@ mongoClient.connect(url, (err, db) => {
             var query = { users: req.body.username };
 
             publicChatRoomsTable.find(query).toArray(function(err, result) {
+                if (err) throw err;
+                res.status(200).send(JSON.stringify(result))
+            })
+
+        })
+
+        app.post('/chatRooms/getUserPrivateChatRooms', (req, res) =>{
+
+            console.log("get user ChatRoom")
+            var query = { users: req.body.username };
+
+            privateChatRoomTable.find(query).toArray(function(err, result) {
                 if (err) throw err;
                 res.status(200).send(JSON.stringify(result))
             })
@@ -252,6 +297,31 @@ mongoClient.connect(url, (err, db) => {
 
         })
 
+
+        app.post('/chatRooms/addUserToPrivateChatRoom', (req, res) =>{
+
+            console.log("add user to private ChatRoom")
+
+            privateChatRoomTable.findOne(query ,(err, result) => {
+
+                if(result == null){
+                    console.log("chat not found")
+                    res.status(400).send()
+                } else {
+                    console.log("user added. sending chatroom to user")
+                    res.status(200).send(JSON.stringify(result))
+                }
+            })
+
+            privateChatRoomTable.updateOne(
+                {"name" :  req.body.chatName},
+                { $push: {"users" : req.body.username} }
+            )
+
+            var query = {name: req.body.chatName}
+
+        })
+
         app.post('/chatRooms/sendMsgToChatRoom', (req, res) =>{
 
             console.log("send msg to ChatRoom")
@@ -270,16 +340,14 @@ mongoClient.connect(url, (err, db) => {
             var chatType = req.body.chatType
             switch(chatType){
                 case 'Public':
-                    console.log("public chat");
                     chatTable = publicChatRoomsTable;
                     break;
                 
                 case 'Private':
-                    console.log("private chat");
+                    chatTable = privateChatRoomTable
                     break;
 
                 case 'Geo-fenced':
-                    console.log("geo-fenced chat");
                     chatTable = geoChatRoomTable;
                     break;
 
@@ -293,12 +361,14 @@ mongoClient.connect(url, (err, db) => {
             chatTable.updateOne(
                 {"name" : req.body.chatName},
                 {
-                    $push: {"msgs": msg}
+                    $push: {"msgs": msg},
+                    $set: {"lastMsgTime": msg.date}
                 }
             )
             
             chatTable.findOne(query, (err, result) => {
                 if(result == null){
+                    
                     console.log("chat not found")
                     res.status(400).send()
                 } else {
@@ -311,56 +381,43 @@ mongoClient.connect(url, (err, db) => {
 
         app.post('/chatRooms/readMsg', (req, res) => {
             console.log("read msg")
+            console.log(req.body.msgId)
+            console.log(req.body.username)
             var chatTable;
 
             var chatType = req.body.chatType
             switch(chatType){
                 case 'Public':
-                    console.log("public chat");
                     chatTable = publicChatRoomsTable;
                     break;
                 
                 case 'Private':
-                    console.log("private chat");
+                    chatTable = privateChatRoomTable
                     break;
 
                 case 'Geo-fenced':
-                    console.log("geo-fenced chat");
                     chatTable = geoChatRoomTable;
                     break;
             }
 
+            var query = {"name" :  req.body.chatName, "msgs": {"$elemMatch":{"id": ObjectId(req.body.msgId), "usersRead": req.body.username}}};
             
-            chatTable.updateOne(
-                {"name" :  req.body.chatName, msgs: {$elemMatch :{"id": req.body.msgId}}}, 
-                { $push: {"usersRead" : req.body.username} }
-            )
+            chatTable.findOne(query, (err, result) =>{
 
-            var query = {"name" :  req.body.chatName};
-
-
-
-            chatTable.findOne(query, (err, result) => {
-
-                if(result == null){
-                    console.log("failed")
-                    res.status(400).send()
-
-                    /*geoChatRoomTable.insertOne(newGeoChatRoom, (err, result) =>{
-                        
-                    })*/
-                } else {
-                    console.log(result.msgs)
+                console.log("this is query")
+                if(result==null){
+                    console.log("add user to usersRead")
+                    chatTable.updateOne(
+                        {"name" :  req.body.chatName, "msgs": {"$elemMatch":{"id": ObjectId(req.body.msgId)}}}, 
+                        { $push: {"msgs.$.usersRead": req.body.username}}
+                    )
                     res.status(200).send()
-		            
+                }
+                else{
+                    console.log("user already added")
+                    res.status(200).send()
                 }
             })
-
-            /*chatTable.find(query)(function(err, result) {
-                if (err) throw err;
-                console.log(result)
-                res.status(200).send()
-            })*/
         })
 
         app.post('/chatRooms/getMsgFromChatRoom', (req, res) =>{
@@ -378,16 +435,14 @@ mongoClient.connect(url, (err, db) => {
             var chatType = req.body.chatType
             switch(chatType){
                 case 'Public':
-                    console.log("public chat");
                     chatTable = publicChatRoomsTable;
                     break;
                 
                 case 'Private':
-                    console.log("private chat");
+                    chatTable = privateChatRoomTable;
                     break;
 
                 case 'Geo-fenced':
-                    console.log("geo-fenced chat");
                     chatTable = geoChatRoomTable;
                     break;
 
