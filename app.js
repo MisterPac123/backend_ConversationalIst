@@ -125,6 +125,7 @@ mongoClient.connect(url, (err, db) => {
                 type: req.body.type,
                 admin : req.body.admin,
                 users:[req.body.admin],
+                inviteLink: req.body.inviteLink,
                 msgs:[]
                 
             }
@@ -402,6 +403,31 @@ mongoClient.connect(url, (err, db) => {
                     res.status(400).send()
                 }
                 else{
+                    res.status(200).send(JSON.stringify(result))
+                }
+            })
+        })
+
+        app.post('/chatRooms/addUserToPrivateChatRoom', (req, res) =>{
+
+            console.log("add user to Private ChatRoom")
+            console.log("inviteLink: " + req.body.inviteLink)
+            console.log("username: " + req.body.username)
+            //chatRooms dont exist TODO 
+            chatRoomsTable.updateOne(
+                {"inviteLink" :  req.body.inviteLink},
+                { $push: {"users" : req.body.username} }
+            )
+
+            var query = {inviteLink: req.body.inviteLink}
+
+            chatRoomsTable.findOne(query ,(err, result) => {
+
+                if(result == null){
+                    console.log("chat not found")
+                    res.status(400).send()
+                } else {
+                    console.log("user added. sending chatroom to user")
                     res.status(200).send(JSON.stringify(result))
                 }
             })
